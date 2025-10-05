@@ -1,7 +1,9 @@
+
 <template>
   <div class="map-wrap">
     <!-- Barra de búsqueda abajo centro -->
     <div class="search-bar">
+      
       <input
         v-model="searchQuery"
         @input="debounceSearch"
@@ -11,7 +13,9 @@
         placeholder="Busca un lugar"
         type="text"
       />
+      
       <button @click="performSearch" class="search-btn">🔍</button>
+      <SearchControls :lat="coordinates?.lat" :lng="coordinates?.lng" @submit="onSubmit" />
       
       <!-- Dropdown de sugerencias -->
       <ul v-if="showDropdown && suggestions.length > 0" class="suggestions-dropdown">
@@ -25,8 +29,9 @@
         </li>
       </ul>
     </div>
-    
+   
     <div class="map" ref="mapContainer"></div>
+
     <div v-if="coordinates" class="coords-display">
       Lat: {{ coordinates.lat.toFixed(4) }} | Lng: {{ coordinates.lng.toFixed(4) }}
     </div>
@@ -37,6 +42,12 @@
 import { Map, MapStyle, Marker, config, NavigationControl, GeolocateControl } from '@maptiler/sdk';
 import { shallowRef, ref, onMounted, onUnmounted, markRaw, nextTick } from 'vue';
 import '@maptiler/sdk/dist/maptiler-sdk.css';
+import SearchControls from './SearchControls.vue';
+
+const onSubmit = (payload) => {
+  console.log('Payload para backend:', payload);
+  // fetch('/api/clima', { method: 'POST', body: JSON.stringify(payload) });
+};
 
 // Clase custom para el control de estilos (sin cambios)
 class StyleControl {
@@ -367,10 +378,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+
 .map-wrap {
   position: fixed; top: 0; left: 0; right: 0;
   width: 100%;
   height: calc(100vh - 5px);
+  align-items: flex-end;
+  
 }
 
 .map {
@@ -380,7 +394,7 @@ onUnmounted(() => {
 }
 
 .search-bar {
-  position: absolute;
+  position: fixed;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
@@ -464,5 +478,12 @@ onUnmounted(() => {
 
 .maptiler-style-dropdown button:hover {
   background: rgba(0, 0, 0, 0.05) !important;
+}
+.controls-wrapper { /* Clase del nuevo comp */
+  position: absolute;
+  bottom: 120px; /* Debajo de search-bar (20px + altura) */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
 }
 </style>
