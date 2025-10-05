@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import axios from 'axios';
 import * as fs from 'fs';
 import * as path from 'path';
+import { spawn } from 'child_process';
+import { promisify } from 'util';
+
+const exec = promisify(require('child_process').exec);
 
 @Injectable()
 export class PredictService {
@@ -10,6 +14,8 @@ export class PredictService {
         const startYear = year - 23;
         const currentYear = new Date().getFullYear();
         const mm = String(month).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        const hh = hour !== undefined ? String(hour).padStart(2, '0') : '15'; // default a las 15:00 si no se especifica
 
         const temporal = 'hourly';
 
@@ -84,9 +90,6 @@ export class PredictService {
             }
 
             // --- Generar un solo CSV con el nombre recibido desde el frontend ---
-            // El nombre del archivo será el valor de day, month, year, hour concatenados (ejemplo: 2023010112.csv)
-            // El contenido tendrá todas las filas de todos los timestamps y parámetros
-
             const outputDir = path.join(process.cwd(), 'python', 'datasets');
             if (!fs.existsSync(outputDir)) {
                 fs.mkdirSync(outputDir, { recursive: true });
@@ -121,7 +124,7 @@ export class PredictService {
             const sortedTimestamps = Object.keys(tsMap).sort();
 
             // Nombre del archivo: YYYYMMDDHH.csv (usando los datos recibidos)
-            const fileName = `${year}${String(month).padStart(2, '0')}${String(day).padStart(2, '0')}${hour !== undefined ? String(hour).padStart(2, '0') : ''}.csv`;
+            const fileName = `${year}${mm}${dd}${hh}.csv`;
             const filePath = path.join(outputDir, fileName);
 
             // Escribir el CSV
@@ -133,18 +136,66 @@ export class PredictService {
             }
             fs.writeFileSync(filePath, csvContent, 'utf8');
 
+            // --- EJECUTAR SCRIPT DE PYTHON AUTOMÁTICAMENTE ---
+            console.log(`🚀 Ejecutando script de Python para generar predicción...`);
+            
+            const pythonScriptPath = path.join(process.cwd(), 'python', 'predict.py');
+            const targetDate = `${year}${mm}${dd}${hh}`;
+            
+            try {
+                // Ejecutar el script de Python pasando la fecha como argumento
+                const { stdout, stderr } = await exec(`python "${pythonScriptPath}" "${targetDate}"`, {
+                    cwd: path.join(process.cwd(), 'python'),
+                    env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+                    maxBuffer: 10 * 1024 * 1024 // 10MB
+                });
+                
+                if (stderr) {
+                    console.error(`❌ Error en Python: ${stderr}`);
+                } else {
+                    console.log(`✅ Script de Python ejecutado exitosamente`);
+                    console.log(`📊 Salida: ${stdout}`);
+                }
+            } catch (pythonError) {
+                console.error(`❌ Error ejecutando Python: ${pythonError}`);
+            }
+
+            // --- LEER PREDICCIÓN GENERADA ---
+            const predictionFileName = `predict_${targetDate}.csv`;
+            const predictionFilePath = path.join(outputDir, predictionFileName);
+            
+            let predictionData = null;
+            let predictionRows: any[] = [];
+            if (fs.existsSync(predictionFilePath)) {
+                const predictionContent = fs.readFileSync(predictionFilePath, 'utf8');
+                const lines = predictionContent.split('\n').filter(l => l.trim());
+                const headers = lines[0].split(',').map(h => h.trim());
+
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',');
+                    const row: any = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index] ? values[index].trim() : null;
+                    });
+                    // Añadir a todas las filas del mes
+                    predictionRows.push(row);
+                    if (row.fecha === targetDate) predictionData = row;
+                }
+            }
+
             return {
+                requestedDate: targetDate,
                 requestedMonth: Number(mm),
                 startYear,
                 endYear: currentYear,
                 temporal,
-                years: final,
-                csvFile: filePath,
-                csvRows: sortedTimestamps.length,
+                // csvFile: filePath,
+                // csvRows: sortedTimestamps.length,
+                prediction: predictionData,
+                predictionRows // todas las filas del mes (varios años)
             };
         } catch (error) {
             return { error: 'Error fetching data from NASA POWER', details: (error as any).message || error };
         }
     }
-
 }

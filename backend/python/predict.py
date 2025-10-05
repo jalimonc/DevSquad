@@ -1,15 +1,24 @@
 import pandas as pd
 import numpy as np
 import os
+import sys
 from sklearn.ensemble import RandomForestRegressor
 import warnings
 warnings.filterwarnings('ignore')
 
+# Obtener la fecha objetivo desde los argumentos de línea de comandos
+if len(sys.argv) > 1:
+    TARGET_DATE = sys.argv[1]
+    print(f"🎯 Fecha objetivo recibida: {TARGET_DATE}")
+else:
+    print("❌ Error: No se proporcionó fecha objetivo")
+    sys.exit(1)
+
 # Configurar rutas
 carpeta_actual = os.path.dirname(os.path.abspath(__file__))
 carpeta_datasets = os.path.join(carpeta_actual, 'datasets')
-archivo_entrada = os.path.join(carpeta_datasets, '2025101815.csv')
-archivo_salida = os.path.join(carpeta_datasets, 'predicciones_enero_2026_completo.csv')
+archivo_entrada = os.path.join(carpeta_datasets, f'{TARGET_DATE}.csv')
+archivo_salida = os.path.join(carpeta_datasets, f'predict_{TARGET_DATE}.csv')
 
 # Verificar que existe la carpeta datasets
 if not os.path.exists(carpeta_datasets):
@@ -19,12 +28,13 @@ if not os.path.exists(carpeta_datasets):
 print(f"📂 Carpeta actual: {carpeta_actual}")
 print(f"📂 Carpeta datasets: {carpeta_datasets}")
 print(f"📄 Archivo de entrada: {archivo_entrada}")
+print(f"📄 Archivo de salida: {archivo_salida}")
 
 # Verificar que el archivo existe
 if not os.path.exists(archivo_entrada):
     print(f"❌ ERROR: No se encuentra el archivo {archivo_entrada}")
     print("💡 Asegúrate de que el archivo CSV esté en la carpeta 'python/datasets/'")
-    exit()
+    sys.exit(1)
 
 # Cargar datos
 try:
@@ -32,7 +42,7 @@ try:
     print(f"✅ Datos cargados exitosamente: {len(df)} registros")
 except Exception as e:
     print(f"❌ Error al cargar el archivo: {e}")
-    exit()
+    sys.exit(1)
 
 df['fecha'] = pd.to_datetime(df['fecha'], format='%Y%m%d%H')
 
@@ -76,31 +86,78 @@ for hora in range(24):
         model.fit(X, y)
         modelos[variable][hora] = model
 
-print("✅ Modelos entrenados! Generando predicciones para ENERO 2026 completo...")
+print("✅ Modelos entrenados! Generando predicciones para el año solicitado...")
 
-# Generar predicciones para Enero 2026 (31 días × 24 horas = 744 registros)
-predicciones_2026 = []
+# Generar predicciones SOLO para el año objetivo
+predicciones_año = []
 
-for dia in range(1, 32):  # Días 1 al 31 de enero
-    # Calcular día de la semana para 2026-01-XX (2026-01-01 es jueves)
-    fecha_base = pd.Timestamp('2026-01-01')
-    fecha_dia = fecha_base + pd.Timedelta(days=dia-1)
+# TARGET_DATE es YYYYMMDDHH - extraer año, mes y día
+target_year = int(TARGET_DATE[0:4])
+target_month = int(TARGET_DATE[4:6])
+target_day = int(TARGET_DATE[6:8])
+target_hour = int(TARGET_DATE[8:10])
+
+import calendar
+
+# Solo generar para el año específico que se solicita
+days_in_month = calendar.monthrange(target_year, target_month)[1]
+
+print(f"🗓️ Generando predicciones del mes {target_month:02d}/{target_year}...")
+
+for dia in range(1, days_in_month + 1):
+    fecha_dia = pd.Timestamp(year=target_year, month=target_month, day=dia)
     dia_semana = fecha_dia.dayofweek
     fin_semana = 1 if dia_semana in [5, 6] else 0
-    
-    if dia % 5 == 0:  # Mostrar progreso cada 5 días
-        print(f"📅 Generando día {dia}/01/2026...")
-    
+
+    # Mostrar progreso cada 5 días
+    if dia % 5 == 0:
+        print(f"📅 Generando día {dia}/{target_month:02d}/{target_year}...")
+
     for hora in range(24):
-        fila_pred = {'fecha': f"202601{dia:02d}{hora:02d}"}
-        
+        fila_pred = {'fecha': f"{target_year}{target_month:02d}{dia:02d}{hora:02d}"}
+
         # Predecir cada variable para esta hora y día
-        features_2026 = np.array([[dia, dia_semana, fin_semana, 2026]])
-        
+        features_target = np.array([[dia, dia_semana, fin_semana, target_year]])
+
         for variable in variables:
-            modelo_hora = modelos[variable][hora]
-            prediccion = modelo_hora.predict(features_2026)[0]
-            
+            # Si el modelo para esta hora/variable no fue entrenado (por falta de datos), usar valor por defecto
+            modelo_hora = modelos.get(variable, {}).get(hora)
+            if modelo_hora is None:
+                # Crear valores por defecto según variable
+                if variable == 'T2M':
+                    prediccion = 20.0  # temperatura promedio
+                elif variable == 'PRECTOTCORR':
+                    prediccion = 0.0  # sin precipitación
+                elif variable == 'PS':
+                    prediccion = 1013.0  # presión estándar
+                elif variable == 'RH2M':
+                    prediccion = 50.0  # humedad media
+                elif variable == 'WS2M':
+                    prediccion = 3.0  # viento moderado
+                elif variable == 'ALLSKY_SFC_SW_DWN':
+                    prediccion = 500.0  # radiación media
+                else:  # CLOUD_AMT
+                    prediccion = 50.0  # nubosidad media
+            else:
+                try:
+                    prediccion = modelo_hora.predict(features_target)[0]
+                except Exception:
+                    # Valores por defecto en caso de error
+                    if variable == 'T2M':
+                        prediccion = 20.0
+                    elif variable == 'PRECTOTCORR':
+                        prediccion = 0.0
+                    elif variable == 'PS':
+                        prediccion = 1013.0
+                    elif variable == 'RH2M':
+                        prediccion = 50.0
+                    elif variable == 'WS2M':
+                        prediccion = 3.0
+                    elif variable == 'ALLSKY_SFC_SW_DWN':
+                        prediccion = 500.0
+                    else:  # CLOUD_AMT
+                        prediccion = 50.0
+
             # Formatear según el tipo de variable
             if variable == 'T2M':  # Temperatura
                 fila_pred[variable] = round(prediccion, 1)
@@ -114,11 +171,11 @@ for dia in range(1, 32):  # Días 1 al 31 de enero
                 fila_pred[variable] = max(0, round(prediccion, 2))
             else:  # CLOUD_AMT
                 fila_pred[variable] = max(0, min(100, round(prediccion, 2)))
-        
-        predicciones_2026.append(fila_pred)
 
-# Crear DataFrame con las predicciones
-df_predicciones = pd.DataFrame(predicciones_2026)
+        predicciones_año.append(fila_pred)
+
+# Crear DataFrame con las predicciones del año
+df_predicciones = pd.DataFrame(predicciones_año)
 
 # Reordenar columnas como el original
 columnas_original = ['fecha', 'T2M', 'PRECTOTCORR', 'PS', 'RH2M', 'WS2M', 'ALLSKY_SFC_SW_DWN', 'CLOUD_AMT']
@@ -131,15 +188,25 @@ try:
 except Exception as e:
     print(f"❌ Error al guardar: {e}")
     # Intentar guardar en carpeta actual como respaldo
-    archivo_respaldo = 'predicciones_enero_2026_completo.csv'
+    archivo_respaldo = f'predict_{TARGET_DATE}.csv'
     df_predicciones.to_csv(archivo_respaldo, index=False)
     print(f"📁 Guardado como respaldo en: {archivo_respaldo}")
 
-print("\n🎉 ¡PREDICCIÓN COMPLETADA!")
+print(f"\n🎉 ¡PREDICCIÓN COMPLETADA!")
 print("=" * 50)
 print(f"📊 Total de registros: {len(df_predicciones)}")
-print(f"📅 Período: 2026-01-01 00:00 a 2026-01-31 23:00")
-print(f"⏰ Horas por día: 24 | Días: 31 | Total: 744 registros")
+print(f"📅 Período: {target_year}-{target_month:02d}-01 00:00 a {target_year}-{target_month:02d}-{days_in_month} 23:00")
+print(f"⏰ Horas por día: 24 | Días: {days_in_month} | Total: {len(df_predicciones)} registros")
+
+# Buscar y mostrar la predicción específica para la fecha solicitada
+prediccion_solicitada = df_predicciones[df_predicciones['fecha'] == TARGET_DATE]
+if not prediccion_solicitada.empty:
+    print(f"\n🎯 PREDICCIÓN PARA {TARGET_DATE}:")
+    fila = prediccion_solicitada.iloc[0]
+    for col in columnas_original:
+        print(f"   {col}: {fila[col]}")
+else:
+    print(f"\n⚠️ No se encontró predicción para {TARGET_DATE}")
 
 # Mostrar estadísticas básicas
 print("\n📈 ESTADÍSTICAS DE PREDICCIÓN:")
@@ -147,10 +214,3 @@ print(f"🌡️  Temperatura (T2M): {df_predicciones['T2M'].min():.1f}°C a {df_
 print(f"💧 Precipitación (PRECTOTCORR): Máx {df_predicciones['PRECTOTCORR'].max():.2f} mm")
 print(f"💨 Viento (WS2M): Promedio {df_predicciones['WS2M'].mean():.1f} m/s")
 print(f"☁️  Nubosidad (CLOUD_AMT): Promedio {df_predicciones['CLOUD_AMT'].mean():.1f}%")
-
-# Mostrar ejemplo de variación diaria
-print(f"\n🔍 Ejemplo - Variación horaria del 10 de Enero 2026:")
-ejemplo_dia = df_predicciones[df_predicciones['fecha'].str.startswith('20260110')]
-for i in [0, 6, 12, 18, 23]:  # Mostrar algunas horas clave
-    fila = ejemplo_dia.iloc[i]
-    print(f"   Hora {fila['fecha'][-2:]}:00 - Temp: {fila['T2M']}°C, Radiación: {fila['ALLSKY_SFC_SW_DWN']} W/m²")
