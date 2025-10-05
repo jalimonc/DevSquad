@@ -52,7 +52,10 @@
       
       <!-- Opcional: Info adicional del response (ej: período de predicción) -->
       <div class="info-section" v-if="data.startYear && data.endYear">
-        <p><strong>Período de Predicción:</strong> {{ data.startYear }} - {{ data.endYear }} ({{ data.temporal }})</p>
+        <p>El día se presentará cálido y mayormente soleado, con una temperatura aproximada de 25.8 °C. Se esperan vientos moderados 
+          que alcanzarán hasta 20 km/h, lo que dará una sensación de frescura durante la jornada. La humedad se mantendrá baja, por lo que el ambiente será seco.
+          Aunque el cielo estará con poca nubosidad, existe la probabilidad de lluvias ligeras en algunos sectores. La radiación solar será alta, por lo que se 
+          recomienda protegerse del sol durante las horas de mayor intensidad.</p>
       </div>
     </div>
     

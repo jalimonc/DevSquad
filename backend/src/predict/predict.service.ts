@@ -5,6 +5,7 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import { promisify } from 'util';
 
+
 const exec = promisify(require('child_process').exec);
 
 @Injectable()
@@ -191,8 +192,7 @@ export class PredictService {
                 temporal,
                 // csvFile: filePath,
                 // csvRows: sortedTimestamps.length,
-                prediction: predictionData,
-                predictionRows // todas las filas del mes (varios años)
+                prediction: predictionData
             };
         } catch (error) {
             return { error: 'Error fetching data from NASA POWER', details: (error as any).message || error };

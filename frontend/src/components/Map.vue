@@ -404,8 +404,15 @@ onUnmounted(() => {
   border-radius: 25px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   padding: 4px;
-  width: 800px; /* Ajusta según necesites */
+  width: 50rem; /* Ajusta según necesites */
   margin-bottom: 300px;
+}
+
+@media screen and (max-width: 600px) {
+  .search-bar {
+    width: 90%; /* Más ancho en móviles */
+  }
+  
 }
 
 .search-bar input {
