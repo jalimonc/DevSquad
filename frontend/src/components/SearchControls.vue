@@ -16,7 +16,7 @@
 
     <!-- Botón Hora (cápsula) -->
     <div class="control-item">
-      <button @click="toggleTimePicker" class="capsule-btn date -btn">
+      <button @click="toggleTimePicker" class="capsule-btn time-btn">
         {{ selectedTime ? selectedTime.padStart(2, '0') + ':00' : 'Hora' }}
       </button>
       <!-- Picker de hora (toggle) -->
@@ -56,11 +56,19 @@
       </button>
     </div>
   </div>
+
+  <!-- Modal Overlay para Result.vue -->
+  <div v-if="showModal" class="modal-overlay" @click="closeModal">
+    <div class="modal-content" @click.stop>
+      <Result :data="resultData" @close="closeModal" />
+    </div>
+  </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { postPredict } from './../services/service.js';
+import Result from './Result.vue'; // Importa el componente Result.vue (ajusta la ruta si es necesario)
 
 const props = defineProps({
   lat: { type: Number, default: null },
@@ -72,6 +80,8 @@ const emit = defineEmits(['submit']);
 const selectedDate = ref(''); // Valor inicial vacío
 const selectedTime = ref(''); // Hora seleccionada (ej: '12')
 const showTimePicker = ref(false); // Toggle para hora
+const showModal = ref(false); // Toggle para modal de resultados
+const resultData = ref(null); // Almacena la respuesta del backend
 
 // Hoy: dinámico a fecha actual
 const today = ref(new Date().toISOString().split('T')[0]);
@@ -209,8 +219,14 @@ const formatDate = (dateStr) => {
   return date.toLocaleDateString('es-ES'); // dd/mm/yyyy
 };
 
+// Cerrar modal
+const closeModal = () => {
+  showModal.value = false;
+  resultData.value = null;
+};
+
 // Handle consultar
-const handleConsult = () => {
+const handleConsult = async () => {
   if (!isValid.value) return;
   
   // Convertir selectedDate (string) a objeto Date
@@ -229,11 +245,35 @@ const handleConsult = () => {
     year: date.getFullYear(),  // Año completo
     hour: selectedTime.value
   };
-  //mandaremos el objeto a la funcion
-  const data = postPredict(payload.lat.toString(), payload.long.toString(), payload.day, payload.month, payload.year, parseInt(payload.hour));
+  
   console.log('Enviando al backend:', payload);
   emit('submit', payload);
-  // Aquí: fetch('/api/clima', { method: 'POST', body: JSON.stringify(payload) });
+  
+  try {
+    // Llama async y await la respuesta
+    const data = await postPredict(
+      payload.lat.toString(), 
+      payload.long.toString(), 
+      payload.day, 
+      payload.month, 
+      payload.year, 
+      parseInt(payload.hour)
+    );
+    
+    console.log('Respuesta recibida del backend:', data); // ¡AGREGADO: Debug para ver si llega la data!
+    
+    // Guarda la data y muestra el modal SOLO si data no es null/undefined
+    if (data && data.prediction && Object.keys(data.prediction).length > 0) {
+      resultData.value = data;
+      showModal.value = true;
+    } else {
+      console.error('Data vacía del backend:', data);
+      // Opcional: Muestra un alert o toast "No hay datos"
+    }
+  } catch (error) {
+    console.error('Error al consultar:', error);
+    // Opcional: Maneja error (ej: toast de error)
+  }
 };
 
 onMounted(() => {
@@ -441,5 +481,42 @@ onUnmounted(() => {
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
+}
+
+/* Estilos para Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5); /* Backdrop semi-transparente */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 0; /* Sin padding aquí, lo maneja Result.vue */
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 800px; /* Aumentado para 3 columnas */
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 </style>

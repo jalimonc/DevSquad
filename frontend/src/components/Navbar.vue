@@ -1,6 +1,6 @@
 <template>
   <div class="heading">
-    <button class="btn">Clima DevSquat</button>
+    <button class="btn">Climate Prediction Platform</button>
   </div>
 </template>
 
@@ -18,6 +18,7 @@
   position: relative; /* Para z-index y superposición */
   z-index: 1000; /* Asegura que esté encima del mapa */
   border-bottom: none; /* Quita borde inferior si hay */ /* Sombra sutil para separar del mapa */
+  
 }
 
 .btn {
@@ -31,7 +32,7 @@
   cursor: pointer;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Sombra para profundidad */
   transition: all 0.3s ease; /* Suave hover */
-  width: 100%; /* Ocupa todo el ancho del heading para que se vea como barra */
+  width: 1000px; /* Ocupa todo el ancho del heading para que se vea como barra */
   max-width: 250px; /* Limita ancho para no estirarse demasiado */
   margin: 0 auto; /* Centrado */
 }

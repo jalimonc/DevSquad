@@ -394,7 +394,7 @@ onUnmounted(() => {
 }
 
 .search-bar {
-  position: fixed;
+  position: absolute;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
@@ -405,7 +405,8 @@ onUnmounted(() => {
   border-radius: 25px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   padding: 4px;
-  width: 350px; /* Ajusta según necesites */
+  width: 800px; /* Ajusta según necesites */
+  margin-bottom: 300px;
 }
 
 .search-bar input {
