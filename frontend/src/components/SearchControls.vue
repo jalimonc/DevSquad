@@ -224,13 +224,13 @@ const handleConsult = () => {
   const payload = {
     lat: props.lat,
     long: props.lng,
-    day: date.getDate(),  // Día del mes (1-31)
+    day: date.getDate() + 1,  // Día del mes (1-31)
     month: date.getMonth() + 1,  // Mes (1-12, ya que getMonth() es 0-11)
     year: date.getFullYear(),  // Año completo
     hour: selectedTime.value
   };
   //mandaremos el objeto a la funcion
-  const data = postPredict('-19.047900', '-65.261380', 10, 7, 2026, 15);
+  const data = postPredict(payload.lat.toString(), payload.long.toString(), payload.day, payload.month, payload.year, parseInt(payload.hour));
   console.log('Enviando al backend:', payload);
   emit('submit', payload);
   // Aquí: fetch('/api/clima', { method: 'POST', body: JSON.stringify(payload) });
