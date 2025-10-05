@@ -2,7 +2,7 @@
     <div>
         <Navbar />
         <Map />
-        <button @click="testPredict">Probar Endpoint</button>
+
     </div>
 </template>
 
