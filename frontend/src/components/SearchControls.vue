@@ -51,7 +51,7 @@
 
     <!-- Botón Consultar (cápsula azul) -->
     <div class="control-item">
-      <button @click="handleConsult" class="capsule-btn consult-btn" :disabled="!isValid">
+      <button @click="handleConsult" class="capsule-btn consult-btn" :disabled="!isValid" >
         Consultar
       </button>
     </div>
@@ -60,6 +60,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { postPredict } from './../services/service.js';
 
 const props = defineProps({
   lat: { type: Number, default: null },
@@ -228,6 +229,8 @@ const handleConsult = () => {
     year: date.getFullYear(),  // Año completo
     hour: selectedTime.value
   };
+  //mandaremos el objeto a la funcion
+  const data = postPredict('-19.047900', '-65.261380', 10, 7, 2026, 15);
   console.log('Enviando al backend:', payload);
   emit('submit', payload);
   // Aquí: fetch('/api/clima', { method: 'POST', body: JSON.stringify(payload) });
