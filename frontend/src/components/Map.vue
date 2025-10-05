@@ -16,7 +16,6 @@
       
       <button @click="performSearch" class="search-btn">🔍</button>
       <SearchControls :lat="coordinates?.lat" :lng="coordinates?.lng" @submit="onSubmit" />
-      
       <!-- Dropdown de sugerencias -->
       <ul v-if="showDropdown && suggestions.length > 0" class="suggestions-dropdown">
         <li
@@ -287,7 +286,7 @@ const performSearch = async () => {
 onMounted(() => {
   config.apiKey = 'rMmvTAYvHTo4a2k2vxXZ';
   
-  const initialState = { lng: -65.25959686357317, lat:  -19.04775511516892, zoom: 14 };
+  const initialState = { lng: -65.25946811754278, lat:  -19.04590937030534, zoom: 14 };
 
   map.value = markRaw(new Map({
     container: mapContainer.value,
